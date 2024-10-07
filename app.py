@@ -2,72 +2,59 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 
-# Load the CSV file into a pandas DataFrame
-transactions = pd.read_csv('Transactional_data_retail_01.csv')
-transactions.columns = transactions.columns.str.strip()
+# Sample data preparation function - replace with your actual data loading and processing
+def load_data(stock_code):
+    # Replace this with actual code to load your data
+    dates = pd.date_range(start="2021-01-01", periods=100, freq="W")
+    actual_train = np.random.normal(200, 20, 60)
+    predicted_train = actual_train + np.random.normal(0, 10, 60)
+    actual_test = np.random.normal(250, 20, 40)
+    predicted_test = actual_test + np.random.normal(0, 10, 40)
+    train_data = pd.DataFrame({"Date": dates[:60], "Actual": actual_train, "Predicted": predicted_train})
+    test_data = pd.DataFrame({"Date": dates[60:], "Actual": actual_test, "Predicted": predicted_test})
+    return train_data, test_data
 
-# App layout
-st.sidebar.header("Input Options")
-stock_code = st.sidebar.selectbox("Select a Stock Code:", transactions['StockCode'].unique())
+# Streamlit App
+st.title("Demand Forecasting")
 
-# Checking the data and displaying columns
-st.write("Available columns in the DataFrame:")
-st.write(transactions.columns.tolist())
+# Sidebar - User Input
+stock_code = st.selectbox("Select a Stock Code:", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "FB", "NFLX", "NVDA"])
 
-# Handle the case where the DataFrame is empty
-if transactions.empty:
-    st.error("The DataFrame is empty. Please check the CSV file.")
-else:
-    st.write(transactions.head())
+# Load Data
+train_data, test_data = load_data(stock_code)
 
-    # Check if required columns are present in the data
-    required_columns = ['StockCode', 'InvoiceDate', 'Quantity']
-    missing_columns = [col for col in required_columns if col not in transactions.columns]
-    
-    if missing_columns:
-        st.error(f"Missing columns in the data: {', '.join(missing_columns)}. Please check the CSV file.")
-    else:
-        # Convert InvoiceDate to datetime and group sales by date
-        transactions['InvoiceDate'] = pd.to_datetime(transactions['InvoiceDate'])
-        product_sales = transactions[transactions['StockCode'] == stock_code].groupby('InvoiceDate')['Quantity'].sum()
+# Main Plot - Actual vs Predicted
+st.subheader(f"Demand Overview for {stock_code}")
+plt.figure(figsize=(10, 6))
+plt.plot(train_data["Date"], train_data["Actual"], 'r-', label="Train Actual Demand")
+plt.plot(train_data["Date"], train_data["Predicted"], 'b--', label="Train Predicted Demand")
+plt.plot(test_data["Date"], test_data["Actual"], 'g-', label="Test Actual Demand")
+plt.plot(test_data["Date"], test_data["Predicted"], 'y--', label="Test Predicted Demand")
+plt.xlabel("Date")
+plt.ylabel("Demand")
+plt.legend()
+st.pyplot(plt)
 
-        if product_sales.empty:
-            st.error(f"No sales data found for stock code {stock_code}.")
-        else:
-            # Plotting the actual vs predicted demand
-            st.subheader(f"Demand Forecasting for {stock_code}")
-            fig, ax = plt.subplots(figsize=(10, 6))
-            product_sales.plot(ax=ax, marker='o', label='Actual Demand')
-            
-            # Dummy predicted demand data for illustration
-            predicted_sales = product_sales + (product_sales * 0.1)  # Adjusting for prediction difference
-            predicted_sales.plot(ax=ax, linestyle='--', marker='x', label='Predicted Demand')
+# Error distribution for training and testing sets
+st.subheader("Error Distribution")
 
-            ax.set_xlabel('Date')
-            ax.set_ylabel('Demand')
-            ax.set_title(f"Actual vs Predicted Demand for {stock_code}")
-            ax.legend()
-            st.pyplot(fig)
+# Error calculations
+train_error = train_data["Actual"] - train_data["Predicted"]
+test_error = test_data["Actual"] - test_data["Predicted"]
 
-            # Error distribution for training and testing sets
-            st.subheader("Error Distribution")
+# Plotting error distributions using histograms
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-            # Assuming some dummy error data for training and testing sets
-            train_error = product_sales - (product_sales * 0.95)
-            test_error = product_sales - predicted_sales
+# Training Error
+sns.histplot(train_error, ax=axes[0], kde=True, color='green', bins=15)
+axes[0].set_title('Training Error Distribution')
+axes[0].set_xlabel('Error')
 
-            # Plotting error distributions using histograms
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            
-            # Training Error
-            sns.histplot(train_error, ax=axes[0], kde=True, color='green', bins=15)
-            axes[0].set_title('Training Error Distribution')
-            axes[0].set_xlabel('Error')
-            
-            # Testing Error
-            sns.histplot(test_error, ax=axes[1], kde=True, color='red', bins=15)
-            axes[1].set_title('Testing Error Distribution')
-            axes[1].set_xlabel('Error')
-            
-            st.pyplot(fig)
+# Testing Error
+sns.histplot(test_error, ax=axes[1], kde=True, color='red', bins=15)
+axes[1].set_title('Testing Error Distribution')
+axes[1].set_xlabel('Error')
+
+st.pyplot(fig)
